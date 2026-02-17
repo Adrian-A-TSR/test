@@ -388,6 +388,82 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
   color:var(--bg);font-family:var(--display);font-size:17px;font-weight:700;
   letter-spacing:.3px;margin-top:4px;
 }
+
+/* ═══ FLASH CARD OVERLAY ═══ */
+#flash-overlay{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:none;flex-direction:column;
+  background:linear-gradient(180deg,#07080d 90%,transparent 100%);
+  padding:10px 12px 18px;
+  animation:flashIn .35s cubic-bezier(.16,1,.3,1);
+}
+#flash-overlay.show{display:flex;}
+@keyframes flashIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}
+
+.flash-tag{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:6px;
+}
+.flash-tag-left{display:flex;align-items:center;gap:7px;}
+.flash-badge{
+  background:rgba(255,193,71,0.15);border:1px solid rgba(255,193,71,0.3);
+  border-radius:5px;padding:2px 8px;font-size:8px;color:var(--amber);
+  letter-spacing:1.5px;font-weight:600;text-transform:uppercase;
+}
+.flash-match{font-size:8.5px;color:var(--muted);}
+.flash-timer-ring{position:relative;width:22px;height:22px;flex-shrink:0;}
+.flash-timer-ring svg{width:22px;height:22px;}
+.ftr{fill:none;stroke:var(--border2);stroke-width:2.5;}
+.ftf{
+  fill:none;stroke:var(--amber);stroke-width:2.5;stroke-linecap:round;
+  stroke-dasharray:57;stroke-dashoffset:0;
+  transform:rotate(-90deg);transform-origin:11px 11px;
+}
+
+.flash-card{
+  background:var(--s2);border:1px solid rgba(255,193,71,0.25);
+  border-radius:14px;overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4),0 0 0 1px rgba(255,193,71,0.08);
+}
+.flash-head{
+  background:linear-gradient(90deg,rgba(255,193,71,0.12),rgba(255,193,71,0.04));
+  padding:9px 14px;border-bottom:1px solid rgba(255,193,71,0.12);
+  display:flex;align-items:center;gap:7px;
+}
+.flash-head-icon{font-size:13px;}
+.flash-head-label{font-size:8.5px;color:var(--amber);letter-spacing:1.5px;font-weight:600;text-transform:uppercase;}
+.flash-q{
+  padding:10px 14px 6px;font-size:11px;color:var(--text2);
+  font-family:var(--mono);line-height:1.4;
+  border-bottom:1px dashed var(--border2);
+}
+.flash-body{
+  padding:14px;max-height:42vh;overflow-y:auto;
+  font-family:var(--sans);font-size:15.5px;line-height:1.78;color:var(--text);
+  scroll-behavior:smooth;
+}
+.flash-body::-webkit-scrollbar{width:2px;}
+.flash-body::-webkit-scrollbar-thumb{background:rgba(255,193,71,0.3);border-radius:1px;}
+.flash-body strong{color:var(--amber);font-weight:700;}
+.flash-body em{
+  color:var(--teal);font-style:normal;font-size:9px;
+  letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono);
+  display:block;margin:10px 0 3px;
+}
+.flash-body p{margin-bottom:10px;}
+.flash-body p:last-child{margin-bottom:0;}
+.flash-foot{
+  display:flex;border-top:1px solid var(--border);
+}
+.flash-foot-btn{
+  flex:1;padding:10px 8px;background:transparent;border:none;
+  color:var(--muted);font-family:var(--mono);font-size:9.5px;
+  cursor:pointer;transition:all .2s;border-right:1px solid var(--border);
+  letter-spacing:.3px;
+}
+.flash-foot-btn:last-child{border-right:none;}
+.flash-foot-btn:active,.flash-foot-btn:hover{background:var(--s3);color:var(--text);}
+.flash-foot-btn.primary{color:var(--amber);}
 </style>
 </head>
 <body>
@@ -464,6 +540,35 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--m
   </div>
 
   <div class="qqs" id="qqs"></div>
+
+  <!-- ════ FLASH CARD OVERLAY ════ -->
+  <div id="flash-overlay">
+    <div class="flash-tag">
+      <div class="flash-tag-left">
+        <div class="flash-badge">⚡ CHEAT SHEET</div>
+        <div class="flash-match" id="flash-match-label"></div>
+      </div>
+      <div class="flash-timer-ring">
+        <svg viewBox="0 0 22 22">
+          <circle class="ftr" cx="11" cy="11" r="9"/>
+          <circle class="ftf" id="ftf" cx="11" cy="11" r="9"/>
+        </svg>
+      </div>
+    </div>
+    <div class="flash-card">
+      <div class="flash-head">
+        <div class="flash-head-icon">📋</div>
+        <div class="flash-head-label">PREPARED ANSWER</div>
+      </div>
+      <div class="flash-q" id="flash-q-text"></div>
+      <div class="flash-body" id="flash-body"></div>
+      <div class="flash-foot">
+        <button class="flash-foot-btn" onclick="dismissFlash()">✕ Dismiss</button>
+        <button class="flash-foot-btn primary" onclick="keepFlash()">📌 Keep visible</button>
+        <button class="flash-foot-btn" onclick="copyFlash()">⎘ Copy</button>
+      </div>
+    </div>
+  </div>
 
   <div class="feed" id="feed">
     <div class="empty" id="empty">
@@ -688,6 +793,348 @@ const QQS={
 };
 
 // ══════════════════════════════════════════
+//  CHEAT SHEET — From Interview Prep Guide
+// ══════════════════════════════════════════
+const CHEAT_SHEET=[
+  {
+    keywords:['high-pressure','balance speed','quality','pressure situation','fast and accurate','speed with quality'],
+    q:'Tell me about a time you handled a high-pressure support situation. How did you balance speed with quality?',
+    a:`*SITUATION* At Teleperformance supporting Mac+ customers, a client preparing for a critical business presentation in 2 hours couldn't connect their MacBook to the projector. They were panicking — their entire pitch depended on it.
+
+*TASK* Diagnose the issue quickly while keeping the customer calm. A slow resolution could cost them a major business opportunity.
+
+*ACTION* I immediately acknowledged the urgency: **"I understand how critical this is. Let's troubleshoot this together right now — I won't let you down."** I asked targeted questions to isolate the cause — HDMI vs USB-C, macOS version, display settings. Within 3 minutes I identified it: display preferences were set to mirror-only. I walked them through the fix step-by-step while documenting everything in the CRM simultaneously.
+
+*RESULT* Issue resolved in **under 8 minutes**. The customer made their presentation on time and sent a follow-up email to my supervisor. The interaction became a **team coaching example** on balancing speed with thoroughness — and earned a **5-star CSAT rating**.`
+  },
+  {
+    keywords:['empathy','frustrated','angry','maintain empathy','furious','upset customer','de-escalate'],
+    q:'How do you maintain empathy when dealing with frustrated or angry customers?',
+    a:`I remind myself that frustrated customers aren't upset with me — they're upset with the **situation**. My role is to be their advocate and problem-solver.
+
+When I mentored advisors at Apple, I taught the **Acknowledge → Empathize → Act** framework: *"I completely understand why this is frustrating — unexpected charges would upset me too. Let me look into this right now and make sure we get this corrected for you."*
+
+The key is active listening without defensiveness. I let customers vent **30–60 seconds** if needed, then shift to solution mode. One example: a customer was furious about a failed iOS update that wiped their photos. I said, **"I can hear how important those photos are. Let's explore every recovery option available."** We recovered **90% of their photos** through an iCloud backup they didn't know existed — they went from furious to grateful in 20 minutes.`
+  },
+  {
+    keywords:['zendesk','workflow','ticket','support ticket','walk me through','handle a ticket'],
+    q:'Walk me through your workflow for handling a typical support ticket in Zendesk.',
+    a:`*Step 1 — Initial Triage (first 30 sec)* Read subject and description carefully. Check user profile for previous tickets, account status, and merged requests. Set priority level — payment issues = **high priority**.
+
+*Step 2 — Investigation (2–3 min)* Pull account details, transaction history, and system logs. Use macros as a framework but always **personalize**. Document investigation steps in internal notes.
+
+*Step 3 — Resolution & Response (3–5 min)* Craft a personalized response using the worker's name. Provide clear step-by-step instructions. Set correct ticket status — solved / pending / escalated. Add relevant **tags for trend tracking**.
+
+*Step 4 — Quality Check (1 min)* Re-read response for clarity and tone. Verify all required fields are complete. Add follow-up reminders where needed.
+
+Key practice: I always add **internal notes explaining why I made certain decisions** — e.g., *"Waived late fee because customer showed proof of hospital visit."* My average handle time was **6.5 minutes** with **95%+ CSAT**.`
+  },
+  {
+    keywords:['documentation','accurate','multiple channels','document','notes','simultaneous'],
+    q:'How do you ensure accurate documentation when handling multiple channels simultaneously?',
+    a:`Documentation accuracy is **non-negotiable**. I document as I work, not after.
+
+My internal note template for a payment dispute includes: **Issue Type | Root Cause | Action Taken | Follow-up Needed**. If I'm on chat and discover the issue was a failed bank verification, I immediately add a note before moving on.
+
+Before closing any ticket, I run a **15-second review**: Did I update all required fields? Are my notes clear enough for a peer review? Did I tag for trend analysis?
+
+At Microsoft, my detailed notes once **saved the next agent 20 minutes** of re-investigation on a follow-up ticket — reinforcing that good documentation is a **team multiplier**, not extra work.`
+  },
+  {
+    keywords:['judgment call','policy','not in policy','outside guidelines','decision','escalate versus','escalate vs'],
+    q:'Describe a time when you had to make a judgment call not explicitly covered in policy guidelines.',
+    a:`*SITUATION* A Microsoft customer accidentally purchased a software license using their work email instead of their personal email. The license was already activated, and they were leaving their job in 3 days. Standard policy: **no transfers after activation**.
+
+*TASK* Decide whether to strictly enforce policy or find a solution that balanced company rules with legitimate customer need.
+
+*ACTION* I verified the customer was the original purchaser via payment method. I assessed the risk — this was genuine user error, not fraud. I consulted my team lead, explained the context, and we agreed to **deactivate the work-email license and issue a replacement key** to the personal email, with the original key permanently invalidated. I documented everything thoroughly.
+
+*RESULT* Customer left a **5-star review** and mentioned me by name. I added this scenario to our internal knowledge base as *"License Email Correction – Verification Required"* — so future agents could handle similar cases without escalating.`
+  },
+  {
+    keywords:['escalate','when to escalate','handle yourself','escalation decision','escalate or solve'],
+    q:'How do you decide when to escalate versus when to handle an issue yourself?',
+    a:`I use a decision framework based on **three factors: complexity, authority, and time-sensitivity**.
+
+**Handle myself when:** it's within my documented authority, I have the tools and knowledge to resolve it fully, and escalating would only add delay.
+
+**Escalate when:** it requires access or permissions I don't have, it's a policy gray area needing leadership input, it could set a precedent for other users, or platform integrity is at risk.
+
+Real example: A healthcare worker needed payment processed urgently before rent was due. The delay was on the facility side. Instead of saying *"wait 3–5 days,"* I checked for blocks, confirmed it was a facility verification delay, and contacted our facility relations team via Slack to expedite. **Payment processed same-day.** I didn't escalate because I had the authority — but I also knew my limits. The key question: **"Am I the best person to solve this right now, or will escalation lead to a better outcome?"**`
+  },
+  {
+    keywords:['macro','template','personalize','templated response','personalization','balance efficiency'],
+    q:'How do you balance efficiency with personalization when using templated responses?',
+    a:`Macros are my **starting point, not my endpoint**. I think of them like a recipe — follow the base structure, but add the right seasoning for each customer.
+
+Instead of *"Hi there, I understand you're having an issue…"* I say **"Hi Marcus, I understand you're concerned about your Friday shift payment…"**
+
+Instead of *"We've reviewed your case and found…"* I say **"I've reviewed your December 15th shift at Memorial Hospital and found…"**
+
+At Apple, I personalized our generic password reset macro by acknowledging the customer's specific situation and proactively teaching them about two-factor authentication. My CSAT for **macro-appropriate issues was actually higher** than for complex troubleshooting — because customers felt heard even on simple issues.`
+  },
+  {
+    keywords:['outdated macro','incorrect macro','wrong information','broken macro','macro error','macro contained'],
+    q:'What would you do if you noticed a macro contained outdated or incorrect information?',
+    a:`Two steps: **Immediate Fix + Systematic Correction.**
+
+**Immediate:** Don't use the broken macro. Write the correct response manually and add an internal note: *"Did not use [Macro Name] — contains outdated info."*
+
+**Systematic:** Report to supervisor/knowledge team with specifics. Check if related macros have the same issue. Offer to draft the corrected version.
+
+At Microsoft, I caught a macro referencing a deprecated tool. I immediately apologized to the customer, sent the correct resource, reported the issue, and within **48 hours the macro was updated** with a team-wide notification.
+
+The key: **don't just work around errors — fix them so the next person benefits.** That's ownership.`
+  },
+  {
+    keywords:['pattern','recurring','trend','identified a pattern','flagged','repeat issue','systemic'],
+    q:'Give me an example of when you identified a pattern in customer issues and took action.',
+    a:`*SITUATION* At Teleperformance, I received **4–5 AirPods connectivity tickets per day** over 2 weeks — unusually high. Normally 1–2 per week. All were Mac+ users.
+
+*TASK* Determine if this was systemic or coincidence, and if systemic, escalate with actionable data.
+
+*ACTION* I tracked every ticket in a simple log: date, macOS version, AirPods model, error description. After **15 cases**, I found **90% had updated to macOS 13.2**. I tested it myself — confirmed a Bluetooth regression bug. I compiled a concise report with volume spike data, 90% correlation, a temporary workaround, and a fix timeline recommendation. I also drafted a knowledge base article.
+
+*RESULT* Leadership escalated to Apple, who confirmed the bug and released a **patch in 10 days**. My workaround helped ~**50 customers** in the interim. Team productivity improved — agents stopped spending 20 minutes troubleshooting. I received a **spot bonus** for proactive problem identification.`
+  },
+  {
+    keywords:['trend monitoring','balance responding','analyze trends','trend analysis','workflow trend'],
+    q:'How do you balance responding to tickets versus taking time to analyze trends?',
+    a:`Trend monitoring is **embedded in my daily workflow**, not separate from it.
+
+**Real-time:** If I see the same issue twice → mental note. Three times → start tracking. Zero extra time.
+
+**End of shift:** Quick scan of closed tickets. Log any patterns in a running note. **5 minutes/day.**
+
+**Weekly:** Review trend notes. Escalate with data if pattern is confirmed — volume, common factor, root cause hypothesis, recommendation. **15 minutes/week.**
+
+ROI example: At Microsoft, 10 minutes of weekly review revealed printer driver issues spiked after **every Windows update**. I flagged the pattern with data — Microsoft released a hotfix, and **printer tickets dropped 40%** the following month. That's the ROI: 10 minutes of analysis prevented hundreds of future tickets.`
+  },
+  {
+    keywords:['training','mentoring','onboarding','mentor','new team members','train','coach','new advisors'],
+    q:'Tell me about your experience training or mentoring new team members. What\'s your approach?',
+    a:`My approach is **"Build Confidence Through Competence."**
+
+*Week 1 — Foundation:* Shadowing. New advisors shadow me for 3–5 tickets. I narrate my thinking out loud: *"I'm checking their account history first because…"* We debrief after each ticket.
+
+*Week 2 — Guided Practice:* They handle tickets while I observe in real-time, on backup chat. Immediate feedback: **2 things done well, 1 to improve**.
+
+*Week 3 — Coached Independence:* They work independently; I review every ticket within 24 hours. Daily 15-minute huddle: *"What was your toughest ticket today?"*
+
+*Week 4+ — Ongoing Support:* Flying solo, but I check in proactively. I celebrate wins publicly.
+
+**Secret Weapon — Pattern Recognition:** Instead of teaching *"how to fix X,"* I teach *"how to diagnose X."* For example: *"When a worker says they didn't get paid, 90% of the time it's one of three things: bank verification, timesheet not submitted, or facility approval delay. Here's how to check each in 60 seconds."*
+
+Result at Apple: **100+ advisors trained**, **30% faster ramp time**, **20% fewer escalations**.`
+  },
+  {
+    keywords:['above and beyond','not required','extra mile','went above','ownership','maria','clock in','shift'],
+    q:'Tell me about a time when you went above and beyond for a customer, even when it wasn\'t required.',
+    a:`*SITUATION* A healthcare worker named Maria contacted support on a **Friday evening** — she couldn't clock in to her shift due to an app error. Missing the shift meant losing **$800+** and potentially hurting her account standing.
+
+*TASK* Standard protocol: submit a ticket, tell her engineering will investigate in 1–2 business days. But she needed the shift that night.
+
+*ACTION* I told Maria, **"I'm not going to let you lose this shift. Let me try everything I can right now."** After 15 minutes of troubleshooting without success, I escalated to our tech team via Slack (after hours), and simultaneously found a workaround in the knowledge base — the **mobile browser version**. I walked Maria through it and she clocked in successfully.
+
+*RESULT* Maria worked her shift and got paid. She sent a **thank-you email** to my supervisor. My bug report led to an **app patch 2 weeks later**. Three other agents used my workaround documentation to help similar cases — turning one worker's crisis into a **systemic improvement**.`
+  },
+  {
+    keywords:['high standards','under pressure','tight deadline','maintained standards','quality under pressure','windows update','volume spike'],
+    q:'Describe a situation where you maintained high standards even under pressure or tight deadlines.',
+    a:`During a major Windows update rollout at Microsoft, ticket volume **spiked 3x overnight**. Some team members took shortcuts — copy-pasting generic responses, closing tickets without confirmation, skipping documentation. **I refused to compromise quality.**
+
+I maintained full documentation on every ticket, verified all resolutions before marking them solved, and owned my mistakes proactively — when I sent Windows 10 steps to a Windows 11 user, I caught and corrected it immediately.
+
+The results spoke for themselves:
+
+**My handle time** was 20% slower than shortcuts — but my **CSAT was 97%** vs the team's 89%. My **re-opened ticket rate was 0%** vs the team's 12%.
+
+The lesson: being unreasonably fast and having uncomfortably high standards aren't opposites. **Speed without accuracy creates more tickets. Quality is actually faster in the long run.**`
+  },
+  {
+    keywords:['why clipboard','why this company','why e-connect','why do you want','why us','mission','values match'],
+    q:'Why do you want to work for Clipboard Health specifically?',
+    a:`Clipboard Health's marketplace **directly impacts healthcare workers' ability to get paid** and facilities' ability to stay staffed. Having spent **8+ years** solving urgent problems for Microsoft and Apple customers, I want to work where that urgency has **real stakes** — patient care, worker income, marketplace reliability.
+
+The values alignment is exact. **Ownership** — I dug into a case and caught duplicate account fraud another agent missed. **Uncomfortably High Standards** — I found a **$74 payment discrepancy** that would have underpaid a healthcare worker. **Unreasonably Fast** — **6.5 minute handle time, 95%+ CSAT**.
+
+I'm not just looking for a job — I want to **be a multiplier**, not just a ticket-closer. Whether mentoring new hires, improving processes, or identifying trends that make the platform better, I want to contribute to something I genuinely believe in.`
+  },
+  {
+    keywords:['weakness','biggest weakness','area of improvement','struggle','improve','perfectionism'],
+    q:'What\'s your biggest weakness?',
+    a:`I sometimes struggle with **perfectionism** — early in my career I'd spend 10 minutes crafting the perfect response to a simple password reset. My supervisor flagged it: *"Save that energy for complex problems."*
+
+I developed a **complexity triage method**: low-complexity tickets get polished macros in 3–5 minutes; high-complexity issues get full scrutiny. My handle time improved by **40%** while maintaining CSAT.
+
+I still bring high standards — but I've learned that **"high standards" means appropriate to context**, not always perfect. When I see Clipboard Health's values — *unreasonably fast* and *uncomfortably high standards* — that balance is exactly what I've had to consciously develop.`
+  },
+  {
+    keywords:['3 years','2 years','career goals','see yourself','future','growth','plan'],
+    q:'Where do you see yourself in 2–3 years?',
+    a:`**Year 1 — Master the role:** Become an expert in Clipboard Health's policies and tools, achieve top-tier metrics, and start contributing to the knowledge base.
+
+**Year 2 — Expand impact:** Take on formal mentorship, lead process optimization initiatives, become the go-to for complex escalations.
+
+**Year 3 — Strategic contribution:** Drive major improvements in CX metrics, bridge frontline support and product/operations teams, and pursue a **senior or lead role** if available.
+
+The common thread: I want to be the person who makes the whole team better — not just the person who closes the most tickets.`
+  },
+  {
+    keywords:['clock in','30 minutes','cant clock in','shift issue','worker cant','technical issue shift','healthcare worker'],
+    q:'A healthcare worker contacts you 30 minutes before their shift. They can\'t clock in. Walk me through how you\'d handle this.',
+    a:`*Step 1 — Acknowledge & Commit (15 sec):* **"Hi [Name], I understand you need to clock in in 30 minutes. I'm going to help you resolve this right now — let's figure this out together."**
+
+*Step 2 — Quick Diagnostic:* What happens when you try? Any error message? App or web browser? First time at this facility?
+
+*Step 3 — Root Cause Check:* Account status (active? any holds?). Shift details (still assigned? correct date?). Technical (app version, connectivity). Facility (verification pending?).
+
+*Step 4 — Resolve or Workaround:* App glitch → clear cache or browser version. Account issue → fix within authority. Facility pending → Slack urgent channel. Technical → alternate clock-in method.
+
+*Step 5 — Escalate if Needed:* If unresolved within 10 min and shift starts in 20 min → escalate with **full context**. Stay on the line. Explore manual workarounds (facility supervisor verification).
+
+*Step 6 — Confirm & Follow Up:* **"Can you try clocking in now to confirm?"** Add account note. Follow up after shift to confirm payment processed correctly.`
+  },
+  {
+    keywords:['disagree with policy','enforce policy','policy you disagree','policy conflict','had to enforce'],
+    q:'How would you handle a situation where you disagreed with a policy but had to enforce it?',
+    a:`**In the moment: Enforce with empathy.**
+
+Never undermine the company. Say: *"I understand this is frustrating. Here's why the policy exists… While I need to follow this policy, let me see if there's any flexibility or alternative I can explore."*
+
+**After the interaction: Advocate through data.**
+
+If I see the same policy causing repeated harm, I collect data — how many cases, what outcome, what workers experience — and present a **solution, not just a complaint**.
+
+At Microsoft, I advocated for extending the refund window from 14 to 30 days for documented extenuating circumstances. I presented **15 cases with data**. The policy changed.
+
+Policies exist for good reasons — but if they repeatedly conflict with the mission, they deserve **review through proper channels**.`
+  },
+  {
+    keywords:['unreasonably fast','fast value','speed value','what does fast mean','run not walk'],
+    q:'What does "Unreasonably Fast" mean to you?',
+    a:`To me, **Unreasonably Fast** means solving problems before the customer even thinks to follow up.
+
+It's not about rushing and making mistakes — it's about removing all unnecessary friction from your process so that **speed is your default**, not your exception.
+
+In practice: When I'm on a support ticket, I'm already logging notes while I'm still reading the issue. I'm already anticipating the next step before the customer replies. My **6.5 minute average handle time** with **95%+ CSAT** isn't luck — it's a deliberate system.
+
+The Clipboard Health framing resonates with me: *"When someone asks if they can get back to you next week, you reply 'how about tomorrow morning.'"* That's exactly how I operate — because healthcare workers **can't afford to wait**.`
+  },
+  {
+    keywords:['ownership','own it','accountability','own the problem','full responsibility','take ownership'],
+    q:'Give me an example of true Ownership.',
+    a:`Ownership means **you don't put the problem down until it's solved** — even if it's technically outside your ticket.
+
+Best example: I was reviewing a case flagged by another agent and noticed something they'd missed — the customer had **two active accounts with matching Arizona license information**. The original agent closed the ticket as resolved. I reopened it, cross-referenced the account history, and confirmed it was **duplicate account fraud**.
+
+I didn't pass it back. I documented the full finding, escalated with a detailed fraud report, and added the detection pattern to our internal knowledge base so other agents could catch it early.
+
+That's ownership — **fixing the problem you see, not just the problem you were assigned**.`
+  },
+  {
+    keywords:['high standards','uncomfortably high','what are high standards','quality','standards mean'],
+    q:'What are Uncomfortably High Standards to you?',
+    a:`Uncomfortably High Standards means **not accepting "good enough" when excellent is achievable** — even when no one is watching.
+
+During a Microsoft update crisis with **3x ticket volume**, when other agents were copy-pasting generic responses and skipping documentation, I maintained full notes on every ticket, verified every resolution, and corrected my own mistakes proactively.
+
+Result: **97% CSAT vs. 89% team average. Zero re-opened tickets vs. 12% team rate.**
+
+The "uncomfortable" part is real — it means catching a **$74 payment discrepancy** in a ticket when you could have easily closed it. It means spending an extra 2 minutes documenting a judgment call that no one might ever read. It means **holding yourself to a standard higher than what's measured**.`
+  },
+  {
+    keywords:['questions for us','questions for interviewer','ask you','ask them','your questions'],
+    q:'Do you have any questions for us?',
+    a:`Yes — I have a few I'd genuinely love to understand better:
+
+**"What does great performance look like in the first 30, 60, and 90 days in this role?"**
+
+**"What are the most common escalations or challenging scenarios your support team faces right now?"**
+
+**"What's the feedback loop between frontline support and product/operations? How are support insights used to improve the platform?"**
+
+**"How does the team maintain 'uncomfortably high standards' while being 'unreasonably fast'? What does that balance look like day-to-day?"**
+
+And honestly — **"What excites you most about Clipboard Health's direction over the next 1–2 years?"**`
+  },
+];
+
+// ══════════════════════════════════════════
+//  FUZZY CHEAT SHEET MATCHING
+// ══════════════════════════════════════════
+let flashTimer=null, flashKept=false;
+const FLASH_DURATION=10000; // 10 seconds
+
+function findCheatMatch(text){
+  const t=text.toLowerCase();
+  let bestMatch=null, bestScore=0;
+  for(const entry of CHEAT_SHEET){
+    let score=0;
+    for(const kw of entry.keywords){
+      if(t.includes(kw.toLowerCase())) score+=kw.split(' ').length; // longer keyword = higher weight
+    }
+    if(score>bestScore){ bestScore=score; bestMatch=entry; }
+  }
+  return bestScore>=2?bestMatch:null; // require at least score 2 to show
+}
+
+function showFlash(match, question){
+  flashKept=false;
+  clearTimeout(flashTimer);
+
+  document.getElementById('flash-q-text').textContent=`"${question}"`;
+  document.getElementById('flash-match-label').textContent=`Matched: ${match.q.substring(0,40)}…`;
+  document.getElementById('flash-body').innerHTML=fmtFlash(match.a);
+
+  const overlay=document.getElementById('flash-overlay');
+  overlay.classList.add('show');
+
+  // Start timer ring animation
+  const ftf=document.getElementById('ftf');
+  ftf.style.transition='none';
+  ftf.style.strokeDashoffset='0';
+  ftf.getBoundingClientRect();
+  ftf.style.transition=`stroke-dashoffset ${FLASH_DURATION}ms linear`;
+  ftf.style.strokeDashoffset='57';
+
+  // Auto-hide after duration
+  flashTimer=setTimeout(()=>{ if(!flashKept) dismissFlash(); }, FLASH_DURATION);
+}
+
+function dismissFlash(){
+  clearTimeout(flashTimer);
+  const o=document.getElementById('flash-overlay');
+  o.style.animation='flashOut .3s ease forwards';
+  setTimeout(()=>{ o.classList.remove('show'); o.style.animation=''; },300);
+}
+
+function keepFlash(){
+  flashKept=true;
+  clearTimeout(flashTimer);
+  // Stop ring animation
+  const ftf=document.getElementById('ftf');
+  ftf.style.transition='none';
+  document.getElementById('flash-match-label').textContent='📌 Pinned — tap Dismiss to hide';
+  showToast('📌 Pinned — will stay until dismissed');
+}
+
+function copyFlash(){
+  const text=document.getElementById('flash-body').innerText;
+  navigator.clipboard.writeText(text).then(()=>showToast('✓ Copied'));
+}
+
+function fmtFlash(text){
+  return text
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(SITUATION|TASK|ACTION|RESULT|Step \d[^*]*)\*/gi,'<em>$1</em>')
+    .replace(/\*(.*?)\*/g,'<span style="color:var(--text2)">$1</span>')
+    .replace(/\n\n+/g,'</p><p>')
+    .replace(/\n/g,'<br/>')
+    .replace(/^/,'<p>').replace(/$/,'</p>');
+}
+
+// ══════════════════════════════════════════
 //  STATE
 // ══════════════════════════════════════════
 let apiKey='', sessionActive=false, recognition=null;
@@ -896,6 +1343,10 @@ function processText(text){
     setTimeout(()=>b.classList.remove('show'),2200);
     return;
   }
+  // Check cheat sheet first
+  const match=findCheatMatch(text);
+  if(match) showFlash(match, text);
+  // Always also generate Gemini answer below
   askGemini(text);
 }
 
@@ -907,6 +1358,9 @@ function sendManual(){
   const text=inp.value.trim(); if(!text)return;
   inp.value=''; hideEmpty();
   updateHeard(text,false);
+  // Check cheat sheet first
+  const match=findCheatMatch(text);
+  if(match) showFlash(match, text);
   askGemini(text);
 }
 
