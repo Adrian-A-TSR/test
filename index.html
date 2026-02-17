@@ -725,25 +725,29 @@ function startApp(){
 }
 
 // ══════════════════════════════════════════
-//  SPEECH
+//  SPEECH — robust with abort/restart handling
 // ══════════════════════════════════════════
-function initSpeech(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){showToast('⚠ Voice not supported — use Chrome or Edge');return;}
-  recognition=new SR();
-  recognition.continuous=true;
-  recognition.interimResults=true;
-  recognition.lang='en-US';
-  recognition.maxAlternatives=1;
+let restartTimer=null, restartAttempts=0, isRestarting=false;
+const MAX_RESTARTS=99; // keep retrying indefinitely during a live session
 
-  recognition.onstart=()=>{
+function buildRecognition(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR) return null;
+  const r=new SR();
+  r.continuous=true;
+  r.interimResults=true;
+  r.lang='en-US';
+  r.maxAlternatives=1;
+
+  r.onstart=()=>{
+    isRestarting=false; restartAttempts=0;
     setStatus('live','● Listening…');
     ringState('listen');
     document.getElementById('wbars').classList.add('show');
     document.getElementById('mic-icon').style.display='none';
   };
 
-  recognition.onresult=(e)=>{
+  r.onresult=(e)=>{
     finalTx=''; interimTx='';
     for(let i=e.resultIndex;i<e.results.length;i++){
       if(e.results[i].isFinal) finalTx+=e.results[i][0].transcript;
@@ -753,13 +757,46 @@ function initSpeech(){
     if(finalTx){ clearTimeout(silenceTimer); startCountdown(); }
   };
 
-  recognition.onerror=(e)=>{
-    if(e.error==='no-speech')return;
-    ringState('err'); setStatus('err','⚠ Mic error: '+e.error);
-    showToast('Mic error: '+e.error);
+  r.onerror=(e)=>{
+    // 'aborted' fires when we stop intentionally OR browser cuts it — always safe to ignore
+    if(e.error==='aborted'||e.error==='no-speech') return;
+    // Network / not-allowed errors — show message
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){
+      ringState('err');
+      setStatus('err','⚠ Mic blocked — check browser permissions');
+      showToast('⚠ Mic permission denied — click the 🔒 icon in address bar');
+      sessionActive=false; updateMicUI(false);
+      return;
+    }
+    // Other errors (network, audio-capture) — silently retry
+    setStatus('live','● Reconnecting…');
   };
 
-  recognition.onend=()=>{ if(sessionActive){ try{recognition.start();}catch(e){} } };
+  r.onend=()=>{
+    if(!sessionActive) return;
+    // Always restart if session is still active, with small cooldown to avoid tight loops
+    if(restartAttempts>=MAX_RESTARTS){ stopSession(); return; }
+    const delay=isRestarting?400:100; // slightly longer delay on repeated restarts
+    isRestarting=true; restartAttempts++;
+    clearTimeout(restartTimer);
+    restartTimer=setTimeout(()=>{
+      if(!sessionActive) return;
+      try{ recognition.start(); }
+      catch(ex){
+        // If recognition object is broken, rebuild it
+        recognition=buildRecognition();
+        setTimeout(()=>{ try{recognition.start();}catch(e){} },300);
+      }
+    },delay);
+  };
+
+  return r;
+}
+
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('⚠ Voice not supported — use Chrome or Edge');return;}
+  recognition=buildRecognition();
 }
 
 function toggleSession(){
@@ -769,25 +806,39 @@ function toggleSession(){
 
 function startSession(){
   sessionActive=true; finalTx=''; interimTx='';
-  document.getElementById('mic-btn').classList.add('live');
-  document.getElementById('mic-lbl').textContent='LIVE — TAP TO STOP';
-  document.getElementById('sbar').classList.add('show');
+  restartAttempts=0; isRestarting=false;
+  updateMicUI(true);
   hideEmpty();
-  try{recognition.start();}catch(e){}
+  try{recognition.start();}catch(e){
+    // If already started, stop first then restart
+    try{recognition.stop();}catch(ex){}
+    setTimeout(()=>{ try{recognition.start();}catch(ex){} },300);
+  }
 }
 
 function stopSession(){
-  sessionActive=false; clearTimeout(silenceTimer);
-  const btn=document.getElementById('mic-btn');
-  btn.classList.remove('live');
-  document.getElementById('mic-lbl').textContent='START';
-  document.getElementById('mic-icon').style.display='';
-  document.getElementById('wbars').classList.remove('show');
-  document.getElementById('sbar').classList.remove('show');
+  sessionActive=false;
+  clearTimeout(silenceTimer); clearTimeout(restartTimer);
+  updateMicUI(false);
   resetSfill();
   ringState('idle'); setStatus('idle','Session ended');
   heardEl=null;
   try{recognition.stop();}catch(e){}
+}
+
+function updateMicUI(live){
+  const btn=document.getElementById('mic-btn');
+  if(live){
+    btn.classList.add('live');
+    document.getElementById('mic-lbl').textContent='LIVE — TAP TO STOP';
+    document.getElementById('sbar').classList.add('show');
+  } else {
+    btn.classList.remove('live');
+    document.getElementById('mic-lbl').textContent='START';
+    document.getElementById('mic-icon').style.display='';
+    document.getElementById('wbars').classList.remove('show');
+    document.getElementById('sbar').classList.remove('show');
+  }
 }
 
 // ══════════════════════════════════════════
