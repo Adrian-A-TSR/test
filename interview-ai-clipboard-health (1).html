@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<title>InterviewAI — Clipboard Health</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#07080d;
+  --s1:#0c0d15;
+  --s2:#11131d;
+  --s3:#161824;
+  --border:#1c1f2e;
+  --border2:#252838;
+  --teal:#00dda8;
+  --teal-glow:rgba(0,221,168,0.15);
+  --teal-dim:rgba(0,221,168,0.08);
+  --amber:#ffc147;
+  --amber-dim:rgba(255,193,71,0.10);
+  --red:#ff4f6a;
+  --red-dim:rgba(255,79,106,0.10);
+  --blue:#6ba3ff;
+  --blue-dim:rgba(107,163,255,0.10);
+  --text:#dde0ef;
+  --text2:#9298b5;
+  --muted:#484d6a;
+  --mono:'DM Mono',monospace;
+  --display:'Syne',sans-serif;
+  --sans:'DM Sans',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--mono);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+/* ═══ SETUP ═══ */
+#setup{
+  position:fixed;inset:0;background:var(--bg);
+  display:flex;flex-direction:column;align-items:center;
+  padding:36px 20px 28px;z-index:200;overflow-y:auto;
+}
+.setup-mark{
+  width:56px;height:56px;border-radius:16px;
+  background:linear-gradient(135deg,var(--teal),#00aaff);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;margin-bottom:18px;
+  box-shadow:0 0 40px rgba(0,221,168,0.25),0 0 80px rgba(0,221,168,0.1);
+}
+.setup-title{
+  font-family:var(--display);font-size:28px;font-weight:800;letter-spacing:-0.5px;margin-bottom:4px;
+}
+.setup-title span{color:var(--teal);}
+.setup-sub{font-size:10px;color:var(--text2);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.cbh-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  background:var(--teal-dim);border:1px solid rgba(0,221,168,0.18);
+  border-radius:20px;padding:5px 14px;font-size:9.5px;
+  color:var(--teal);letter-spacing:.5px;margin-bottom:28px;
+}
+.pulse-dot{width:5px;height:5px;border-radius:50%;background:var(--teal);animation:pdot 2s infinite;}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.2}}
+
+.setup-card{
+  width:100%;max-width:400px;
+  background:var(--s1);border:1px solid var(--border);border-radius:18px;overflow:hidden;
+}
+.s-sec{padding:20px;border-bottom:1px solid var(--border);}
+.s-sec:last-child{border-bottom:none;}
+.s-lbl{font-size:9px;font-weight:500;color:var(--teal);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.s-inp{
+  width:100%;background:var(--bg);border:1px solid var(--border2);
+  border-radius:10px;padding:11px 14px;color:var(--text);
+  font-family:var(--mono);font-size:13px;outline:none;transition:border-color .2s;
+}
+.s-inp:focus{border-color:var(--teal);}
+.s-hint{font-size:9.5px;color:var(--muted);margin-top:6px;line-height:1.55;}
+.s-hint a{color:var(--teal);text-decoration:none;}
+
+.info-box{
+  display:flex;gap:9px;background:var(--amber-dim);
+  border:1px solid rgba(255,193,71,0.15);border-radius:10px;padding:12px;
+}
+.info-box+.info-box{margin-top:8px;}
+.info-icon{font-size:15px;flex-shrink:0;margin-top:1px;}
+.info-copy{font-size:10px;color:var(--amber);line-height:1.6;}
+.info-copy strong{display:block;font-size:11px;margin-bottom:2px;color:var(--amber);}
+
+.btn-go{
+  width:100%;padding:16px;border:none;border-radius:13px;cursor:pointer;
+  background:linear-gradient(135deg,var(--teal) 0%,#00b8f0 100%);
+  color:#07080d;font-family:var(--display);font-size:19px;font-weight:700;
+  letter-spacing:.5px;transition:all .2s;margin-top:16px;
+  box-shadow:0 8px 24px rgba(0,221,168,0.2);
+}
+.btn-go:active{transform:scale(.98);opacity:.9;}
+
+/* ═══ MAIN APP ═══ */
+#app{display:none;flex-direction:column;height:100vh;overflow:hidden;}
+
+/* Topbar */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 14px 8px;background:var(--s1);
+  border-bottom:1px solid var(--border);flex-shrink:0;
+}
+.t-left{display:flex;align-items:center;gap:10px;}
+.ring-wrap{position:relative;width:36px;height:36px;flex-shrink:0;}
+.ring-wrap svg{position:absolute;inset:0;width:36px;height:36px;}
+.ring-center{
+  position:absolute;inset:0;display:flex;
+  align-items:center;justify-content:center;font-size:14px;
+}
+.rt{fill:none;stroke:var(--border2);stroke-width:2.5;}
+.rf{
+  fill:none;stroke:var(--teal);stroke-width:2.5;stroke-linecap:round;
+  stroke-dasharray:92;stroke-dashoffset:92;
+  transform:rotate(-90deg);transform-origin:18px 18px;
+  transition:stroke-dashoffset .4s,stroke .3s;
+}
+.rf.listen{stroke-dashoffset:0;animation:rpulse 2.2s ease-in-out infinite;}
+.rf.think{stroke:var(--amber);stroke-dashoffset:22;animation:rspin 1.1s linear infinite;}
+.rf.err{stroke:var(--red);stroke-dashoffset:0;}
+@keyframes rpulse{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes rspin{from{stroke-dashoffset:92}to{stroke-dashoffset:0}}
+
+.t-info{}
+.t-name{font-family:var(--display);font-size:16px;font-weight:700;letter-spacing:.2px;}
+.t-name em{color:var(--teal);font-style:normal;}
+.t-status{font-size:9px;color:var(--muted);letter-spacing:.5px;margin-top:1px;transition:color .3s;}
+.t-status.live{color:var(--teal);}
+.t-status.think{color:var(--amber);}
+.t-status.err{color:var(--red);}
+
+.t-right{display:flex;gap:6px;}
+.ib{
+  width:34px;height:34px;border-radius:9px;border:1px solid var(--border2);
+  background:transparent;color:var(--muted);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  transition:all .15s;
+}
+.ib:active{background:var(--s3);color:var(--text);}
+
+/* Mode tabs */
+.modes{
+  display:flex;background:var(--s2);border-bottom:1px solid var(--border);
+  flex-shrink:0;overflow-x:auto;scrollbar-width:none;
+}
+.modes::-webkit-scrollbar{display:none;}
+.mtab{
+  flex:1;min-width:0;padding:9px 3px 7px;border:none;
+  background:transparent;color:var(--muted);
+  font-family:var(--mono);font-size:8.5px;font-weight:500;
+  letter-spacing:.8px;text-transform:uppercase;cursor:pointer;
+  border-bottom:2px solid transparent;transition:all .2s;white-space:nowrap;
+}
+.mtab.on{color:var(--teal);border-bottom-color:var(--teal);}
+
+/* Quick chips */
+.qqs{
+  display:flex;gap:6px;padding:7px 11px;
+  background:var(--s1);border-bottom:1px solid var(--border);
+  flex-shrink:0;overflow-x:auto;scrollbar-width:none;
+}
+.qqs::-webkit-scrollbar{display:none;}
+.qchip{
+  flex:0 0 auto;padding:5px 12px;border-radius:20px;
+  border:1px solid var(--border2);background:transparent;
+  color:var(--text2);font-family:var(--mono);font-size:9.5px;
+  cursor:pointer;white-space:nowrap;transition:all .18s;
+}
+.qchip:active,.qchip.hi{background:var(--teal-dim);border-color:var(--teal);color:var(--teal);}
+
+/* Feed */
+.feed{
+  flex:1;overflow-y:auto;padding:11px 11px 6px;
+  display:flex;flex-direction:column;gap:10px;scroll-behavior:smooth;
+}
+.feed::-webkit-scrollbar{width:2px;}
+.feed::-webkit-scrollbar-thumb{background:var(--border2);border-radius:1px;}
+
+/* Empty */
+.empty{
+  flex:1;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;padding:24px 20px;gap:10px;
+}
+.empty-ring{
+  width:60px;height:60px;border-radius:50%;
+  border:2px dashed var(--border2);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;opacity:.45;
+}
+.empty-h{font-family:var(--display);font-size:18px;color:var(--muted);letter-spacing:.3px;}
+.empty-d{font-size:11px;color:var(--muted);line-height:1.65;max-width:230px;}
+.ev-chips{display:flex;gap:5px;flex-wrap:wrap;justify-content:center;margin-top:4px;}
+.ev{
+  background:var(--teal-dim);border:1px solid rgba(0,221,168,0.14);
+  border-radius:20px;padding:3px 10px;font-size:8.5px;color:var(--teal);
+}
+
+/* Heard */
+.heard{
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:12px;padding:11px 13px;
+}
+.heard-lbl{font-size:8.5px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:5px;}
+.heard-txt{font-size:13px;color:var(--text);line-height:1.55;min-height:18px;}
+.heard-txt.interim{color:var(--text2);font-style:italic;}
+
+/* Thinking */
+.think-card{
+  background:var(--s2);border:1px solid var(--border2);
+  border-radius:12px;padding:14px 16px;
+  display:flex;align-items:center;gap:12px;
+  animation:slup .3s ease;
+}
+.tdots{display:flex;gap:4px;}
+.tdots span{
+  width:5px;height:5px;border-radius:50%;background:var(--amber);
+  animation:db .85s ease-in-out infinite;
+}
+.tdots span:nth-child(2){animation-delay:.15s;}
+.tdots span:nth-child(3){animation-delay:.30s;}
+@keyframes db{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+.think-txt{font-size:11px;color:var(--text2);}
+
+/* Answer card */
+.acard{
+  border-radius:14px;overflow:hidden;
+  border:1px solid rgba(0,221,168,0.18);
+  animation:slup .4s cubic-bezier(.16,1,.3,1);
+}
+@keyframes slup{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+
+.ahead{
+  background:linear-gradient(90deg,rgba(0,221,168,0.1),rgba(0,221,168,0.03));
+  padding:8px 13px;display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid rgba(0,221,168,0.1);
+}
+.ahead-l{display:flex;align-items:center;gap:7px;}
+.albl{font-size:8.5px;color:var(--teal);font-weight:500;letter-spacing:1.5px;text-transform:uppercase;}
+.mbadge{
+  background:var(--teal-dim);border:1px solid rgba(0,221,168,0.18);
+  border-radius:4px;padding:1px 6px;font-size:8px;color:var(--teal);letter-spacing:.5px;
+}
+.atime{font-size:8.5px;color:var(--muted);}
+
+/* THE KEY: big, scannable answer text */
+.abody{
+  background:var(--s1);padding:16px 14px;
+  font-family:var(--sans);font-size:16px;line-height:1.8;color:var(--text);
+}
+.abody strong{color:var(--teal);font-weight:700;}
+.abody em{
+  color:var(--amber);font-style:normal;font-size:9px;
+  letter-spacing:1.5px;text-transform:uppercase;font-family:var(--mono);
+  display:block;margin:12px 0 4px;opacity:.85;
+}
+.abody p{margin-bottom:10px;}
+.abody p:last-child{margin-bottom:0;}
+
+.afoot{display:flex;border-top:1px solid var(--border);}
+.afbtn{
+  flex:1;padding:10px 6px;background:transparent;border:none;
+  color:var(--muted);font-family:var(--mono);font-size:9.5px;
+  cursor:pointer;transition:all .2s;border-right:1px solid var(--border);
+  letter-spacing:.3px;
+}
+.afbtn:last-child{border-right:none;}
+.afbtn:active{background:var(--s3);color:var(--text);}
+
+/* Error card */
+.ercard{
+  background:#120607;border:1px solid #3a0f14;border-radius:12px;
+  padding:12px 14px;font-size:11.5px;color:#ff6b6b;
+}
+
+/* Bottom bar */
+.bottom{
+  background:var(--s1);border-top:1px solid var(--border);
+  padding:10px 12px 16px;flex-shrink:0;
+}
+.mrow{display:flex;gap:7px;margin-bottom:8px;}
+.minp{
+  flex:1;background:var(--bg);border:1px solid var(--border2);
+  border-radius:10px;padding:10px 12px;color:var(--text);
+  font-family:var(--mono);font-size:12.5px;outline:none;transition:border-color .2s;
+}
+.minp:focus{border-color:var(--teal);}
+.msend{
+  width:40px;height:40px;border-radius:10px;border:none;
+  background:var(--teal);color:var(--bg);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;flex-shrink:0;font-weight:700;transition:opacity .2s;
+}
+.msend:active{opacity:.8;}
+
+/* Big mic */
+.mic-outer{position:relative;}
+.mic-btn{
+  width:100%;padding:15px 12px;border-radius:14px;border:2px solid var(--border2);
+  background:var(--s2);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  transition:all .25s;position:relative;overflow:hidden;
+}
+.mic-btn::before{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(135deg,var(--teal),#00b8f0);
+  opacity:0;transition:opacity .25s;
+}
+.mic-btn.live{border-color:var(--teal);box-shadow:0 0 30px rgba(0,221,168,0.22);}
+.mic-btn.live::before{opacity:1;}
+.mic-btn:active{transform:scale(.98);}
+
+.mic-icon{font-size:20px;position:relative;z-index:1;transition:all .25s;}
+.mic-lbl{
+  font-family:var(--display);font-size:18px;letter-spacing:.5px;
+  color:var(--text2);position:relative;z-index:1;transition:color .25s;
+}
+.mic-btn.live .mic-lbl{color:var(--bg);}
+
+.wbars{display:none;align-items:center;gap:2px;position:relative;z-index:1;}
+.wbars.show{display:flex;}
+.wbars span{
+  width:3px;background:var(--bg);border-radius:2px;
+  animation:wb .9s ease-in-out infinite;
+}
+.wbars span:nth-child(1){height:8px;animation-delay:0s}
+.wbars span:nth-child(2){height:16px;animation-delay:.1s}
+.wbars span:nth-child(3){height:10px;animation-delay:.2s}
+.wbars span:nth-child(4){height:18px;animation-delay:.3s}
+.wbars span:nth-child(5){height:8px;animation-delay:.4s}
+@keyframes wb{0%,100%{transform:scaleY(1)}50%{transform:scaleY(.3)}}
+
+/* Silence progress bar */
+.sbar{height:2px;background:var(--border2);border-radius:1px;margin-top:6px;display:none;}
+.sbar.show{display:block;}
+.sfill{height:100%;background:var(--teal);border-radius:1px;width:0;transition:width linear;}
+
+/* Pause badge */
+.pause-badge{
+  display:none;position:fixed;bottom:120px;left:50%;transform:translateX(-50%);
+  background:rgba(107,163,255,0.12);border:1px solid rgba(107,163,255,0.22);
+  border-radius:20px;padding:6px 16px;font-size:10px;color:var(--blue);
+  z-index:50;align-items:center;gap:6px;white-space:nowrap;
+  animation:slup .3s ease;
+}
+.pause-badge.show{display:flex;}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:130px;left:50%;transform:translateX(-50%);
+  background:var(--s3);border:1px solid var(--border2);
+  border-radius:10px;padding:9px 16px;font-size:11px;color:var(--text);
+  z-index:300;opacity:0;transition:opacity .25s;white-space:nowrap;pointer-events:none;
+}
+.toast.show{opacity:1;}
+
+/* Settings */
+#settings{
+  position:fixed;inset:0;background:var(--bg);z-index:150;
+  display:none;flex-direction:column;overflow-y:auto;padding:20px;
+}
+#settings.open{display:flex;}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
+.stitle{font-family:var(--display);font-size:22px;font-weight:700;}
+.scls{
+  width:36px;height:36px;border-radius:9px;border:1px solid var(--border2);
+  background:transparent;color:var(--muted);cursor:pointer;font-size:18px;
+  display:flex;align-items:center;justify-content:center;
+}
+.sblk{margin-bottom:18px;}
+.ssec{font-size:9px;color:var(--teal);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;}
+.scard{background:var(--s1);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.srow{padding:12px 14px;border-bottom:1px solid var(--border);}
+.srow:last-child{border-bottom:none;}
+.srow label{display:block;font-size:9px;color:var(--teal);font-weight:500;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;}
+.srow input,.srow textarea,.srow select{
+  width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;
+  padding:9px 11px;color:var(--text);font-family:var(--mono);font-size:11.5px;outline:none;
+}
+.srow textarea{resize:vertical;min-height:90px;line-height:1.5;}
+.srow select{cursor:pointer;}
+.sbtn{
+  width:100%;padding:14px;border-radius:12px;border:none;cursor:pointer;
+  background:linear-gradient(135deg,var(--teal),#00b8f0);
+  color:var(--bg);font-family:var(--display);font-size:17px;font-weight:700;
+  letter-spacing:.3px;margin-top:4px;
+}
+</style>
+</head>
+<body>
+
+<!-- ════ SETUP ════ -->
+<div id="setup">
+  <div class="setup-mark">🎯</div>
+  <div class="setup-title">Interview<span>AI</span></div>
+  <div class="setup-sub">Powered by Gemini · Built for Adrian</div>
+  <div class="cbh-pill">
+    <span class="pulse-dot"></span>
+    Clipboard Health · CX Specialist
+  </div>
+
+  <div class="setup-card">
+    <div class="s-sec">
+      <div class="s-lbl">Gemini API Key</div>
+      <input class="s-inp" type="password" id="api-key-input" placeholder="AIzaSy…" autocomplete="off" spellcheck="false"/>
+      <div class="s-hint">Get your free key at <a href="https://aistudio.google.com" target="_blank">aistudio.google.com</a> → Get API Key. No credit card. Stored only on this device.</div>
+    </div>
+
+    <div class="s-sec">
+      <div class="info-box">
+        <div class="info-icon">🎙</div>
+        <div class="info-copy">
+          <strong>Always-On Mic</strong>
+          Tap START once. Mic stays open the whole interview. Your answer auto-appears 2.5 seconds after the recruiter stops talking. You never tap again.
+        </div>
+      </div>
+      <div class="info-box">
+        <div class="info-icon">🧠</div>
+        <div class="info-copy">
+          <strong>Smart Question Detection</strong>
+          If the mic picks up YOU asking a question to the recruiter, it silently skips — no answer generated. Pre-loaded with your resume &amp; all Clipboard Health context.
+        </div>
+      </div>
+    </div>
+
+    <div class="s-sec" style="border-bottom:none;">
+      <button class="btn-go" onclick="startApp()">START INTERVIEW →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP ════ -->
+<div id="app">
+
+  <div class="topbar">
+    <div class="t-left">
+      <div class="ring-wrap">
+        <svg viewBox="0 0 36 36">
+          <circle class="rt" cx="18" cy="18" r="14.5"/>
+          <circle class="rf" id="rf" cx="18" cy="18" r="14.5"/>
+        </svg>
+        <div class="ring-center" id="ring-icon">🎙</div>
+      </div>
+      <div class="t-info">
+        <div class="t-name">Interview<em>AI</em></div>
+        <div class="t-status" id="t-status">Tap START to begin</div>
+      </div>
+    </div>
+    <div class="t-right">
+      <button class="ib" onclick="clearFeed()">🗑</button>
+      <button class="ib" onclick="openSettings()">⚙</button>
+    </div>
+  </div>
+
+  <div class="modes">
+    <button class="mtab on" id="tab-general"    onclick="setMode('general')">GENERAL</button>
+    <button class="mtab"    id="tab-behavioral" onclick="setMode('behavioral')">BEHAVIORAL</button>
+    <button class="mtab"    id="tab-role"       onclick="setMode('role')">ROLE</button>
+    <button class="mtab"    id="tab-values"     onclick="setMode('values')">VALUES</button>
+    <button class="mtab"    id="tab-closing"    onclick="setMode('closing')">CLOSING</button>
+  </div>
+
+  <div class="qqs" id="qqs"></div>
+
+  <div class="feed" id="feed">
+    <div class="empty" id="empty">
+      <div class="empty-ring">🎙</div>
+      <div class="empty-h">Ready for battle</div>
+      <div class="empty-d">Tap START — the mic stays open. Your answer appears automatically after the recruiter finishes speaking.</div>
+      <div class="ev-chips">
+        <span class="ev">Unreasonably Fast</span>
+        <span class="ev">Ownership</span>
+        <span class="ev">High Standards</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pause-badge" id="pause-badge">🔇 Your question — skipping</div>
+
+  <div class="bottom">
+    <div class="mrow">
+      <input class="minp" id="minp" placeholder="Or type a question here…" onkeydown="if(event.key==='Enter')sendManual()"/>
+      <button class="msend" onclick="sendManual()">↑</button>
+    </div>
+    <div class="mic-outer">
+      <button class="mic-btn" id="mic-btn" onclick="toggleSession()">
+        <div class="wbars" id="wbars">
+          <span></span><span></span><span></span><span></span><span></span>
+        </div>
+        <span class="mic-icon" id="mic-icon">🎙</span>
+        <span class="mic-lbl" id="mic-lbl">START</span>
+      </button>
+      <div class="sbar" id="sbar"><div class="sfill" id="sfill"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SETTINGS ════ -->
+<div id="settings">
+  <div class="sh">
+    <div class="stitle">Settings</div>
+    <button class="scls" onclick="closeSettings()">✕</button>
+  </div>
+  <div class="sblk">
+    <div class="ssec">API</div>
+    <div class="scard">
+      <div class="srow"><label>Gemini API Key</label><input type="password" id="s-key" spellcheck="false"/></div>
+    </div>
+  </div>
+  <div class="sblk">
+    <div class="ssec">Your Context</div>
+    <div class="scard">
+      <div class="srow"><label>Your Name</label><input type="text" id="s-name"/></div>
+      <div class="srow"><label>Resume Summary</label><textarea id="s-resume"></textarea></div>
+      <div class="srow"><label>Job &amp; Company Context</label><textarea id="s-job"></textarea></div>
+      <div class="srow"><label>Talking Points &amp; STAR Stories</label><textarea id="s-talking"></textarea></div>
+    </div>
+  </div>
+  <div class="sblk">
+    <div class="ssec">Answer Style</div>
+    <div class="scard">
+      <div class="srow">
+        <label>Response Length</label>
+        <select id="s-length">
+          <option value="concise">Concise (2–3 sentences)</option>
+          <option value="standard" selected>Standard (4–6 sentences)</option>
+          <option value="detailed">Detailed (full STAR)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <button class="sbtn" onclick="saveSettings()">Save Settings</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════
+//  PRE-LOADED DEFAULTS
+// ══════════════════════════════════════════
+const DEF_RESUME=`CANDIDATE: Adrian D. Alasco
+TARGET: Customer Experience Specialist at Clipboard Health
+
+EXPERIENCE (8+ years):
+1. Microsoft Community & Q&A Support (05/2025–Present)
+   - Forum expert support for Windows & Microsoft products
+   - Diagnose update failures, activation, licensing, system errors
+   - Probing questions to isolate root cause; prevent repeat issues
+   - High-quality responses balancing speed, clarity, accuracy
+
+2. Mac+ Support, Level 2 — Teleperformance (08/2022–03/2025)
+   - Level 2 macOS support via phone, chat, email
+   - Ticket triage, CRM documentation in Zendesk & Salesforce
+   - Identified repeat issues; contributed to internal knowledge base
+   - Guided customers through account access & device configuration
+
+3. Mentor, Apple Technical Support — Majorel (09/2019–01/2022)
+   - Onboarded and trained 100+ new advisors (30% faster ramp time)
+   - Side-by-side mentoring, chat reviews, quality coaching
+   - Reinforced ticketing standards, documentation, escalation workflows
+   - Supported advisors with difficult cases, root cause isolation
+
+4. Microsoft Technical Support — Sutherland (06/2016–05/2019)
+   - 40+ cases/day across Windows OS, network, drivers
+   - Remote desktop via Quick Assist and LogMeIn
+   - Escalated with clear notes, steps to reproduce, customer impact
+   - Identified repeat failure patterns; suggested process improvements
+
+5. Supervisor — Kybotech LTD (02/2015–06/2016)
+   - Oversaw daily operations; first-level escalation point
+
+KEY METRICS:
+- 95%+ CSAT ratings across voice, chat, email
+- 6.5 min average handle time
+- 100+ advisors trained; 30% ramp time reduction; 20% fewer escalations
+- 60% resolution efficiency improvement
+- Zero re-opened tickets during Microsoft update crisis
+
+SKILLS: Zendesk, Salesforce, macros, CRM documentation, payment troubleshooting,
+trend analysis, mentoring, account investigations, pattern recognition, escalation judgment`;
+
+const DEF_JOB=`COMPANY: Clipboard Health (clipboardhealth.com)
+TYPE: Two-sided marketplace connecting healthcare facilities (nursing homes, hospitals) with healthcare professionals (nurses, CNAs, etc.) for per-diem & urgent shift staffing.
+SCALE: $1.3B valuation, Series C, Sequoia & IVP backed. YC top 100. 950+ team members in 60+ countries. 100% remote since day 1. 20X growth since Jan 2021.
+MISSION: Lift healthcare workers up the socio-economic ladder. Give them income control, schedule flexibility, and faster pay.
+PRODUCTS: Mobile app for HCPs — InstantPay (get paid right after shift), License Manager, Priority Access, Urgent Shifts, Digital Timesheets, Work with Friends, Maple scheduling.
+
+JOB RESPONSIBILITIES:
+1. Fast, accurate, empathetic support for healthcare professionals — chat, voice, email — resolving shift, payment, platform issues in real time
+2. Navigate Zendesk and Salesforce to investigate cases, update form fields, log clear internal notes, accurate documentation
+3. Sound judgment and critical thinking — troubleshoot, adapt workflows, escalate ONLY when necessary
+4. Personalize communication with macros, address workers by name, proofread carefully, confident helpful tone
+5. Monitor trends, flag recurring issues or process gaps to improve worker experience and operations
+6. Support onboarding — guide new workers through platform workflows, help them gain confidence
+7. Uphold values: UNREASONABLY FAST · OWNERSHIP · UNCOMFORTABLY HIGH STANDARDS in every interaction
+
+ALL 13 CLIPBOARD HEALTH VALUES:
+1. Noticing & Curiosity — ask "why" many times, find root cause, challenge assumptions, disconfirm beliefs
+2. Ownership — full accountability, own the outcome, fix problems outside your immediate area, proactive
+3. Initiative & Persistence — bias for action, scrappy, get MVP done today, speed matters, no "stepping on toes"
+4. Judgment & Decisiveness — strong instincts, right level of detail, make the call, don't delay
+5. Think from First Principles — imagine ideal experience from scratch, not "10% better than status quo"
+6. Humble — low ego, care about results not who's right, admit unknowns, cherish feedback
+7. Customer Centricity — feel each customer's pain viscerally, fix things systematically, obsess over improvement
+8. Uncomfortably High Standards — surprise and delight, quality AND speed, set industry standard
+9. Unreasonably Fast — run not walk, "tomorrow morning" not "next week," always ask "can I be faster?"
+10. Relish Discomfort — do what's needed especially if uncomfortable, don't avoid hard conversations
+11. See for Yourself — dive deep, touch reality yourself, pull random tickets, audit frequently
+12. Hire, Develop & Rehire the Best — raise the bar every hire, no monopoly on work, no toes
+13. Accurately Self Aware — know your strengths and blind spots, acknowledge mistakes publicly, ask for feedback`;
+
+const DEF_TALKING=`KEY TALKING POINTS — weave naturally into answers:
+
+STAR STORIES:
+- "Speed + quality": MacBook projector fix in 8 min before client presentation → 5-star CSAT
+- "Empathy under pressure": iOS update wiped photos, recovered 90% via iCloud → furious to grateful
+- "Above and beyond": Maria couldn't clock in at 6PM Friday, found workaround, stayed late → $800 shift saved for healthcare worker
+- "Pattern recognition": AirPods + macOS 13.2 bug → tracked 15 cases across tickets, escalated with data → Apple patched it
+- "Judgment call": License email transfer not in policy → verified identity, got approval, documented → 5-star review
+- "Mentoring": 100+ advisors trained, 30% faster ramp, 20% fewer escalations — structured coaching not just shadowing
+- "High volume, high standards": Windows update spike tripled volume → maintained 97% CSAT vs 89% team average
+
+CLIPBOARD HEALTH VALUE ALIGNMENT:
+- "Unreasonably Fast" → I pride myself on being the fastest responder; I close before the customer follows up
+- "Ownership" → Caught issues outside my ticket: Brett's duplicate account fraud, Nadine's $74.20 payment error
+- "High Standards" → Zero re-opened tickets during crisis; not closing fast but closing RIGHT
+- "Noticing & Curiosity" → Spotted AirPods bug across 15 cases before it was flagged systemically
+- "Customer Centricity" → Healthcare workers can't wait — missed shift = someone's rent. Every ticket is urgent.
+- "See for Yourself" → I pull the ticket history, I read the trail, I don't just take the first description
+
+CASE STUDY STANDOUTS (use if relevant):
+- Caught Brett Murray's duplicate account fraud via AZ license match — another agent missed it
+- Found $74.20 payment discrepancy in Nadine's ticket that would have underpaid healthcare worker Racquel
+- Analyzed 55 shifts → 10.9% completion rate = pattern of chronic unreliability
+
+METRICS TO CITE: 95%+ CSAT · 6.5 min handle time · 100+ advisors trained · 30% ramp reduction · 8 years experience
+
+STRONG CLOSING QUESTIONS TO ASK THEM:
+- "What does great performance look like in the first 90 days?"
+- "How does the team currently surface and escalate recurring platform issues?"
+- "What's the biggest challenge the CX team is navigating right now?"
+- "How does Clipboard Health think about growing the CX team internally?"
+
+AVOID: Starting sentences with "I", generic phrases like "I'm a people person", over-explaining`;
+
+// ══════════════════════════════════════════
+//  QUICK QUESTIONS PER MODE
+// ══════════════════════════════════════════
+const QQS={
+  general:[
+    "Tell me about yourself",
+    "Why Clipboard Health?",
+    "What are your strengths?",
+    "Where do you see yourself in 3 years?",
+    "What makes you the right fit?",
+  ],
+  behavioral:[
+    "Tell me about a time you resolved a difficult customer",
+    "Tell me about a time you went above and beyond",
+    "Tell me about a time you caught something others missed",
+    "Tell me about a time you handled high volume under pressure",
+    "Tell me about a time you trained or mentored someone",
+  ],
+  role:[
+    "How do you use Zendesk and Salesforce together?",
+    "Walk me through a payment discrepancy case",
+    "How do you decide when to escalate vs. solve yourself?",
+    "How do you use macros without sounding robotic?",
+    "How would you handle a nurse who missed a shift?",
+  ],
+  values:[
+    "What does 'Unreasonably Fast' mean to you?",
+    "Give an example of true Ownership",
+    "What are Uncomfortably High Standards to you?",
+    "How do you show Noticing & Curiosity in support?",
+    "Tell me about a time you relished discomfort",
+  ],
+  closing:[
+    "What are your salary expectations?",
+    "When can you start?",
+    "Do you have any questions for us?",
+    "Why should we hire you?",
+    "What motivates you in a support role?",
+  ],
+};
+
+// ══════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════
+let apiKey='', sessionActive=false, recognition=null;
+let isThinking=false, silenceTimer=null;
+let finalTx='', interimTx='', heardEl=null;
+let currentMode='general';
+const SILENCE=2500;
+
+// ══════════════════════════════════════════
+//  BOOT
+// ══════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  const k=ls('iai_key'); if(k) document.getElementById('api-key-input').value=k;
+  renderQQs();
+});
+
+function ls(k,v){
+  try{ if(v===undefined)return localStorage.getItem(k); localStorage.setItem(k,v); }
+  catch(e){return null;}
+}
+
+function startApp(){
+  const key=document.getElementById('api-key-input').value.trim();
+  if(!key||key.length<20){showToast('⚠ Enter Gemini API key (starts with AIzaSy…)');return;}
+  apiKey=key; ls('iai_key',key);
+  if(!ls('iai_resume')) ls('iai_resume',DEF_RESUME);
+  if(!ls('iai_job'))    ls('iai_job',DEF_JOB);
+  if(!ls('iai_talking'))ls('iai_talking',DEF_TALKING);
+  if(!ls('iai_name'))   ls('iai_name','Adrian Alasco');
+  if(!ls('iai_length')) ls('iai_length','standard');
+  document.getElementById('setup').style.display='none';
+  document.getElementById('app').style.display='flex';
+  initSpeech();
+  setStatus('idle','Ready — tap START');
+}
+
+// ══════════════════════════════════════════
+//  SPEECH
+// ══════════════════════════════════════════
+function initSpeech(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){showToast('⚠ Voice not supported — use Chrome or Edge');return;}
+  recognition=new SR();
+  recognition.continuous=true;
+  recognition.interimResults=true;
+  recognition.lang='en-US';
+  recognition.maxAlternatives=1;
+
+  recognition.onstart=()=>{
+    setStatus('live','● Listening…');
+    ringState('listen');
+    document.getElementById('wbars').classList.add('show');
+    document.getElementById('mic-icon').style.display='none';
+  };
+
+  recognition.onresult=(e)=>{
+    finalTx=''; interimTx='';
+    for(let i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) finalTx+=e.results[i][0].transcript;
+      else interimTx+=e.results[i][0].transcript;
+    }
+    updateHeard(finalTx||interimTx,!finalTx);
+    if(finalTx){ clearTimeout(silenceTimer); startCountdown(); }
+  };
+
+  recognition.onerror=(e)=>{
+    if(e.error==='no-speech')return;
+    ringState('err'); setStatus('err','⚠ Mic error: '+e.error);
+    showToast('Mic error: '+e.error);
+  };
+
+  recognition.onend=()=>{ if(sessionActive){ try{recognition.start();}catch(e){} } };
+}
+
+function toggleSession(){
+  if(!recognition){showToast('Voice requires Chrome or Edge');return;}
+  sessionActive?stopSession():startSession();
+}
+
+function startSession(){
+  sessionActive=true; finalTx=''; interimTx='';
+  document.getElementById('mic-btn').classList.add('live');
+  document.getElementById('mic-lbl').textContent='LIVE — TAP TO STOP';
+  document.getElementById('sbar').classList.add('show');
+  hideEmpty();
+  try{recognition.start();}catch(e){}
+}
+
+function stopSession(){
+  sessionActive=false; clearTimeout(silenceTimer);
+  const btn=document.getElementById('mic-btn');
+  btn.classList.remove('live');
+  document.getElementById('mic-lbl').textContent='START';
+  document.getElementById('mic-icon').style.display='';
+  document.getElementById('wbars').classList.remove('show');
+  document.getElementById('sbar').classList.remove('show');
+  resetSfill();
+  ringState('idle'); setStatus('idle','Session ended');
+  heardEl=null;
+  try{recognition.stop();}catch(e){}
+}
+
+// ══════════════════════════════════════════
+//  SILENCE COUNTDOWN
+// ══════════════════════════════════════════
+function startCountdown(){
+  resetSfill();
+  const sf=document.getElementById('sfill');
+  sf.getBoundingClientRect(); // force reflow
+  sf.style.transition=`width ${SILENCE}ms linear`;
+  sf.style.width='100%';
+  silenceTimer=setTimeout(()=>{
+    const text=finalTx.trim();
+    resetSfill();
+    if(text.length>4) processText(text);
+  },SILENCE);
+}
+
+function resetSfill(){
+  const sf=document.getElementById('sfill');
+  sf.style.transition='none'; sf.style.width='0%';
+}
+
+// ══════════════════════════════════════════
+//  SMART QUESTION DETECTION
+// ══════════════════════════════════════════
+function isMyQuestion(text){
+  const t=text.toLowerCase().trim();
+  // Definitely recruiter questions — answer these
+  const recruiter=[
+    /tell me about (yourself|a time|your|how)/,
+    /describe (yourself|a situation|your|how)/,
+    /why (do you|are you|should we|clipboard|this role)/,
+    /what (is your|are your|makes you|do you bring|would you do|motivated)/,
+    /how (do you|would you|have you|did you|do you handle)/,
+    /walk me through/,/give me an example/,/can you (tell|walk|describe|explain|share)/,
+    /what('s| is) your (greatest|biggest|strength|weakness|approach)/,
+  ];
+  if(recruiter.some(p=>p.test(t))) return false;
+  // Looks like Adrian asking the recruiter something (short + starts with question word)
+  const mine=[
+    /^(what|how|when|where|who|which)\b.{0,80}(your|the team|clipboard|the role|you all)\b/,
+    /^(could you|can you tell me|is there|are there|do you offer)\b/,
+    /^(just to clarify|i was wondering|quick question|one more thing)\b/,
+  ];
+  if(mine.some(p=>p.test(t))&&t.length<130) return true;
+  return false;
+}
+
+function processText(text){
+  finalTx=''; heardEl=null;
+  if(isMyQuestion(text)){
+    const b=document.getElementById('pause-badge');
+    b.classList.add('show');
+    setTimeout(()=>b.classList.remove('show'),2200);
+    return;
+  }
+  askGemini(text);
+}
+
+// ══════════════════════════════════════════
+//  MANUAL INPUT
+// ══════════════════════════════════════════
+function sendManual(){
+  const inp=document.getElementById('minp');
+  const text=inp.value.trim(); if(!text)return;
+  inp.value=''; hideEmpty();
+  updateHeard(text,false);
+  askGemini(text);
+}
+
+// ══════════════════════════════════════════
+//  GEMINI
+// ══════════════════════════════════════════
+async function askGemini(question){
+  if(isThinking)return;
+  if(!apiKey){showToast('API key missing — open Settings');return;}
+  isThinking=true;
+  ringState('think'); setStatus('think','◆ Generating…');
+  hideEmpty();
+
+  const resume  = ls('iai_resume')||DEF_RESUME;
+  const job     = ls('iai_job')||DEF_JOB;
+  const talking = ls('iai_talking')||DEF_TALKING;
+  const name    = ls('iai_name')||'Adrian Alasco';
+  const length  = ls('iai_length')||'standard';
+
+  const lenGuide={
+    concise:'2–3 sentences max. Be sharp and punchy.',
+    standard:'4–7 sentences. Natural spoken length.',
+    detailed:'Full STAR story. Thorough but still conversational.',
+  }[length]||'4–7 sentences.';
+
+  const modeCtx={
+    general:'General interview question. Be warm and genuine.',
+    behavioral:`Behavioral (Tell me about a time...). Use a concrete STAR story from the resume.
+Format: start each part with a label on its own line like *SITUATION* *ACTION* *RESULT* — this helps Adrian scan while talking.`,
+    role:'Role-specific / tool question. Be specific about Zendesk, Salesforce, macros, workflows, and exact methods.',
+    values:`Clipboard Health values question. Connect answer directly to their specific values.
+Core ones: Unreasonably Fast (run not walk), Ownership (own it fully), Uncomfortably High Standards (quality+speed), Noticing & Curiosity (ask why many times), Customer Centricity (feel each customer's pain viscerally).`,
+    closing:'Closing / strategic question. Be confident. If they ask what questions Adrian has, provide 2–3 strong thoughtful ones.',
+  }[currentMode]||'';
+
+  const sys=`You are a real-time interview AI helping ${name} answer questions LIVE during a Clipboard Health job interview.
+
+YOUR ONE JOB: Write the exact words ${name} should say out loud right now.
+
+RULES — follow every one:
+- Write ONLY the spoken answer. NO preamble ("Here's a good answer", "You could say", etc.)
+- First person: "I did…", "What I found…", "My experience…"
+- Tone: NATURAL and conversational — like speaking off the cuff, NOT reading an essay. Warm, genuine, confident.
+- ${lenGuide}
+- ${modeCtx}
+- Only use experiences from the provided resume. NEVER invent.
+- Use **bold** around key phrases (metrics, tools, outcomes, company names) — makes it easy for Adrian's eyes to scan while talking.
+- For STAR answers: put *SITUATION* *ACTION* *RESULT* labels on their own lines as visual anchors.
+- Write in flowing paragraphs — no bullet points.
+- End with one strong, natural closing sentence.
+
+RESUME:
+${resume}
+
+JOB & COMPANY:
+${job}
+
+TALKING POINTS & EXAMPLES:
+${talking}`;
+
+  const tid='t'+Date.now();
+  addThink(tid);
+
+  try{
+    const url=`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+    const res=await fetch(url,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        system_instruction:{parts:[{text:sys}]},
+        contents:[{role:'user',parts:[{text:`Interview question: "${question}"`}]}],
+        generationConfig:{maxOutputTokens:750,temperature:0.75},
+      }),
+    });
+    removeEl(tid);
+    if(!res.ok){
+      const err=await res.json().catch(()=>({}));
+      throw new Error(err.error?.message||`HTTP ${res.status}`);
+    }
+    const data=await res.json();
+    const raw=data.candidates?.[0]?.content?.parts?.[0]?.text||'No response.';
+    addAnswer(question,raw);
+    ringState('listen'); setStatus('live','● Listening…');
+  }catch(e){
+    removeEl(tid);
+    ringState('err'); setStatus('err','⚠ Error — check API key');
+    showToast('Error: '+(e.message||'Check API key'));
+    document.getElementById('feed').insertAdjacentHTML('beforeend',
+      `<div class="ercard">⚠ ${e.message||'Something went wrong.'}</div>`);
+    scrollFeed();
+  }
+  isThinking=false;
+}
+
+// ══════════════════════════════════════════
+//  UI
+// ══════════════════════════════════════════
+function updateHeard(text,interim){
+  if(!heardEl){
+    heardEl=document.createElement('div');
+    heardEl.className='heard';
+    heardEl.innerHTML='<div class="heard-lbl">🎙 HEARD</div><div class="heard-txt" id="heard-txt"></div>';
+    document.getElementById('feed').appendChild(heardEl);
+    hideEmpty();
+  }
+  const el=document.getElementById('heard-txt');
+  if(el){ el.textContent=text||(interim?'Listening…':''); el.className='heard-txt'+(interim?' interim':''); }
+  scrollFeed();
+}
+
+function addThink(id){
+  const el=document.createElement('div');
+  el.className='think-card'; el.id=id;
+  el.innerHTML='<div class="tdots"><span></span><span></span><span></span></div><div class="think-txt">Generating your answer…</div>';
+  document.getElementById('feed').appendChild(el);
+  scrollFeed();
+}
+
+function addAnswer(question,raw){
+  heardEl=null;
+  const id='a'+Date.now();
+  const now=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const card=document.createElement('div');
+  card.className='acard';
+  card.innerHTML=`
+    <div class="ahead">
+      <div class="ahead-l">
+        <div class="albl">ANSWER</div>
+        <div class="mbadge">${currentMode.toUpperCase()}</div>
+      </div>
+      <div class="atime">${now}</div>
+    </div>
+    <div class="abody" id="${id}">${fmt(raw)}</div>
+    <div class="afoot">
+      <button class="afbtn" onclick="copyA('${id}')">⎘ Copy</button>
+      <button class="afbtn" onclick="regen('${question.replace(/'/g,"\\'")}')">↺ Retry</button>
+      <button class="afbtn" onclick="this.closest('.acard').remove()">✕</button>
+    </div>`;
+  document.getElementById('feed').appendChild(card);
+  scrollFeed();
+}
+
+function fmt(text){
+  return text
+    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(SITUATION|TASK|ACTION|RESULT|S:|T:|A:|R:)\*?:?/gi,'<em>$1</em>')
+    .replace(/\*(.*?)\*/g,'<span style="color:var(--text2)">$1</span>')
+    .replace(/\n\n+/g,'</p><p>')
+    .replace(/\n/g,'<br/>')
+    .replace(/^/,'<p>')
+    .replace(/$/,'</p>');
+}
+
+function copyA(id){
+  navigator.clipboard.writeText(document.getElementById(id)?.innerText||'')
+    .then(()=>showToast('✓ Copied'));
+}
+
+function regen(q){
+  hideEmpty();
+  updateHeard(q,false);
+  askGemini(q);
+}
+
+function removeEl(id){ document.getElementById(id)?.remove(); }
+
+function hideEmpty(){
+  const e=document.getElementById('empty'); if(e) e.style.display='none';
+}
+
+function clearFeed(){
+  document.getElementById('feed').innerHTML=
+    `<div class="empty" id="empty">
+      <div class="empty-ring">🎙</div>
+      <div class="empty-h">Feed cleared</div>
+      <div class="empty-d">Tap START and keep going.</div>
+    </div>`;
+  heardEl=null;
+  showToast('Feed cleared');
+}
+
+function scrollFeed(){
+  const f=document.getElementById('feed');
+  setTimeout(()=>f.scrollTop=f.scrollHeight,50);
+}
+
+// ══════════════════════════════════════════
+//  QUICK QS
+// ══════════════════════════════════════════
+function renderQQs(){
+  const row=document.getElementById('qqs'); row.innerHTML='';
+  (QQS[currentMode]||[]).forEach(q=>{
+    const c=document.createElement('button');
+    c.className='qchip'; c.textContent=q;
+    c.onclick=()=>{
+      c.classList.add('hi'); setTimeout(()=>c.classList.remove('hi'),600);
+      hideEmpty(); updateHeard(q,false); askGemini(q);
+    };
+    row.appendChild(c);
+  });
+}
+
+// ══════════════════════════════════════════
+//  MODE
+// ══════════════════════════════════════════
+function setMode(m){
+  currentMode=m;
+  document.querySelectorAll('.mtab').forEach(t=>t.classList.remove('on'));
+  document.getElementById('tab-'+m).classList.add('on');
+  renderQQs();
+  showToast('Mode: '+m.charAt(0).toUpperCase()+m.slice(1));
+}
+
+// ══════════════════════════════════════════
+//  RING / STATUS
+// ══════════════════════════════════════════
+function ringState(s){
+  const r=document.getElementById('rf'), ic=document.getElementById('ring-icon');
+  r.className='rf';
+  if(s==='listen'){r.classList.add('listen');ic.textContent='🎙';}
+  else if(s==='think'){r.classList.add('think');ic.textContent='◆';}
+  else if(s==='err'){r.classList.add('err');ic.textContent='⚠';}
+  else{ic.textContent='🎙';}
+}
+
+function setStatus(s,txt){
+  const el=document.getElementById('t-status');
+  el.textContent=txt; el.className='t-status';
+  if(s==='live') el.classList.add('live');
+  else if(s==='think') el.classList.add('think');
+  else if(s==='err') el.classList.add('err');
+}
+
+// ══════════════════════════════════════════
+//  SETTINGS
+// ══════════════════════════════════════════
+function openSettings(){
+  document.getElementById('s-key').value=apiKey||ls('iai_key')||'';
+  document.getElementById('s-name').value=ls('iai_name')||'Adrian Alasco';
+  document.getElementById('s-resume').value=ls('iai_resume')||DEF_RESUME;
+  document.getElementById('s-job').value=ls('iai_job')||DEF_JOB;
+  document.getElementById('s-talking').value=ls('iai_talking')||DEF_TALKING;
+  document.getElementById('s-length').value=ls('iai_length')||'standard';
+  document.getElementById('settings').classList.add('open');
+}
+function closeSettings(){ document.getElementById('settings').classList.remove('open'); }
+function saveSettings(){
+  const k=document.getElementById('s-key').value.trim();
+  if(k){apiKey=k;ls('iai_key',k);}
+  ls('iai_name',document.getElementById('s-name').value);
+  ls('iai_resume',document.getElementById('s-resume').value);
+  ls('iai_job',document.getElementById('s-job').value);
+  ls('iai_talking',document.getElementById('s-talking').value);
+  ls('iai_length',document.getElementById('s-length').value);
+  closeSettings(); showToast('✓ Settings saved');
+}
+
+// ══════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════
+let tt;
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2800);
+}
+</script>
+</body>
+</html>
